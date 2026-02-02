@@ -85,14 +85,9 @@ builder.Services.AddScoped<IUsuarioService, UsuarioService>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
-// Configurar Kestrel para Railway - IPv4 E IPv6
-var port = int.Parse(Environment.GetEnvironmentVariable("PORT") ?? "5138");
-builder.WebHost.ConfigureKestrel(options =>
-{
-    // Escutar em todas as interfaces - IPv4 e IPv6
-    options.Listen(System.Net.IPAddress.Any, port); // IPv4: 0.0.0.0
-    options.Listen(System.Net.IPAddress.IPv6Any, port); // IPv6: [::]
-});
+// Configurar porta para Railway - usar UseUrls que funciona com IPv4 e IPv6
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5138";
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 var app = builder.Build();
 
