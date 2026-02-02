@@ -85,6 +85,10 @@ builder.Services.AddScoped<IUsuarioService, UsuarioService>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
+// Configurar porta do Railway
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+
 var app = builder.Build();
 
 // Aplicar migrations automaticamente ao iniciar
@@ -94,8 +98,19 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<AppDbContext>();
-        context.Database.Migrate(); // Aplica migrations pendentes
-        app.Logger.LogInformation("Migrations aplicadas com sucesso");
+        
+        // Verificar se tem connection string configurada
+        var connString = builder.Configuration.GetConnectionString("DefaultConnection");
+        if (string.IsNullOrEmpty(connString))
+        {
+            app.Logger.LogWarning("Connection string não configurada. Verifique as variáveis de ambiente.");
+        }
+        else
+        {
+            app.Logger.LogInformation("Aplicando migrations...");
+            context.Database.Migrate(); // Aplica migrations pendentes
+            app.Logger.LogInformation("Migrations aplicadas com sucesso");
+        }
     }
     catch (Exception ex)
     {
