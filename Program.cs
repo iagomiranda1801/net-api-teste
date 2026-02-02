@@ -85,12 +85,11 @@ builder.Services.AddScoped<IUsuarioService, UsuarioService>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
-// Configurar porta do Railway (apenas em produção)
-var port = Environment.GetEnvironmentVariable("PORT");
-if (!string.IsNullOrEmpty(port))
+// Configurar Kestrel para Railway
+builder.WebHost.ConfigureKestrel(options =>
 {
-    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
-}
+    options.ListenAnyIP(int.Parse(Environment.GetEnvironmentVariable("PORT") ?? "5138"));
+});
 
 var app = builder.Build();
 
@@ -98,23 +97,36 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI();
 
+// Middleware para logging de requisições (debug Railway)
+app.Use(async (context, next) =>
+{
+    app.Logger.LogInformation($"Request: {context.Request.Method} {context.Request.Path} from {context.Connection.RemoteIpAddress}");
+    await next();
+});
+
 // NÃO usar HTTPS redirect no Railway
 // app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Health check para Railway
-app.MapGet("/", () => Results.Ok(new { 
-    status = "online", 
-    message = "MinhaAPI está rodando!",
-    timestamp = DateTime.UtcNow 
-})).AllowAnonymous();
+// Health check para Railway - DEVE ser o primeiro endpoint
+app.MapGet("/", () => 
+{
+    return Results.Ok(new { 
+        status = "online", 
+        message = "MinhaAPI está rodando!",
+        timestamp = DateTime.UtcNow 
+    });
+}).AllowAnonymous().WithName("Root");
 
-app.MapGet("/health", () => Results.Ok(new { 
-    status = "healthy", 
-    timestamp = DateTime.UtcNow 
-})).AllowAnonymous();
+app.MapGet("/health", () => 
+{
+    return Results.Ok(new { 
+        status = "healthy", 
+        timestamp = DateTime.UtcNow 
+    });
+}).AllowAnonymous().WithName("HealthCheck");
 
 app.MapControllers();
 
