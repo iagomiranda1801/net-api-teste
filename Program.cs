@@ -85,17 +85,24 @@ builder.Services.AddScoped<IUsuarioService, UsuarioService>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
-// Configurar Kestrel para Railway
+// Configurar Kestrel para Railway - IPv4 E IPv6
+var port = int.Parse(Environment.GetEnvironmentVariable("PORT") ?? "5138");
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.ListenAnyIP(int.Parse(Environment.GetEnvironmentVariable("PORT") ?? "5138"));
+    // Escutar em todas as interfaces - IPv4 e IPv6
+    options.Listen(System.Net.IPAddress.Any, port); // IPv4: 0.0.0.0
+    options.Listen(System.Net.IPAddress.IPv6Any, port); // IPv6: [::]
 });
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 app.UseSwagger();
-app.UseSwaggerUI();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "MinhaAPI v1");
+    c.RoutePrefix = "swagger";
+});
 
 // NÃO usar HTTPS redirect no Railway
 // app.UseHttpsRedirection();
