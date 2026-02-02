@@ -87,9 +87,31 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 
 var app = builder.Build();
 
+// Aplicar migrations automaticamente ao iniciar
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<AppDbContext>();
+        context.Database.Migrate(); // Aplica migrations pendentes
+        app.Logger.LogInformation("Migrations aplicadas com sucesso");
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Erro ao aplicar migrations");
+    }
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+else
+{
+    // Habilitar Swagger em produção para Railway
     app.UseSwagger();
     app.UseSwaggerUI();
 }
