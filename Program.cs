@@ -97,20 +97,15 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI();
 
-// Middleware para logging de requisições (debug Railway)
-app.Use(async (context, next) =>
-{
-    app.Logger.LogInformation($"Request: {context.Request.Method} {context.Request.Path} from {context.Connection.RemoteIpAddress}");
-    await next();
-});
-
 // NÃO usar HTTPS redirect no Railway
 // app.UseHttpsRedirection();
 
-app.UseAuthentication();
-app.UseAuthorization();
+// Health check ANTES de qualquer middleware de autenticação
+app.MapGet("/health", () => 
+{
+    return Results.Text("OK", "text/plain", statusCode: 200);
+}).AllowAnonymous().WithName("HealthCheck");
 
-// Health check para Railway - DEVE ser o primeiro endpoint
 app.MapGet("/", () => 
 {
     return Results.Ok(new { 
@@ -120,13 +115,18 @@ app.MapGet("/", () =>
     });
 }).AllowAnonymous().WithName("Root");
 
-app.MapGet("/health", () => 
+// Middleware para logging de requisições (debug Railway)
+app.Use(async (context, next) =>
 {
-    return Results.Ok(new { 
-        status = "healthy", 
-        timestamp = DateTime.UtcNow 
-    });
-}).AllowAnonymous().WithName("HealthCheck");
+    var start = DateTime.UtcNow;
+    app.Logger.LogInformation($"[REQUEST] {context.Request.Method} {context.Request.Path} from {context.Connection.RemoteIpAddress}");
+    await next();
+    var duration = (DateTime.UtcNow - start).TotalMilliseconds;
+    app.Logger.LogInformation($"[RESPONSE] {context.Request.Method} {context.Request.Path} - {context.Response.StatusCode} ({duration}ms)");
+});
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 
