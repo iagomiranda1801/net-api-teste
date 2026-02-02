@@ -1,8 +1,2 @@
-[phases.setup]
-nixPkgs = ['...', 'dotnet-sdk_9']
-
-[phases.build]
-cmds = ['dotnet restore', 'dotnet publish -c Release -o out']
-
-[start]
-cmd = 'cd out && dotnet MinhaApi.dll --urls http://0.0.0.0:$PORT'
+# Desabilitado - usando Dockerfile customizado
+# Railway vai detectar o Dockerfile automaticamente
