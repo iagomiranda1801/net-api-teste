@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using MinhaApi.Application.DTOs;
 using MinhaApi.Application.Interfaces;
 
@@ -6,6 +7,7 @@ namespace MinhaApi.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize] // Protege todos os endpoints deste controller
 public class UsuariosController : ControllerBase
 {
     private readonly IUsuarioService _service;
@@ -19,33 +21,51 @@ public class UsuariosController : ControllerBase
     /// Obtém todos os usuários
     /// </summary>
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<UsuarioDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<UsuarioDto>>> ObterTodos()
+    [ProducesResponseType(typeof(ApiResponse<IEnumerable<UsuarioDto>>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<IEnumerable<UsuarioDto>>>> ObterTodos()
     {
         var usuarios = await _service.ObterTodosAsync();
-        return Ok(usuarios);
+        var response = new ApiResponse<IEnumerable<UsuarioDto>>(
+            Sucesso: true,
+            Mensagem: "Usuários obtidos com sucesso",
+            Dados: usuarios
+        );
+        return Ok(response);
     }
 
     /// <summary>
     /// Obtém um usuário por ID
     /// </summary>
     [HttpGet("{id}")]
-    [ProducesResponseType(typeof(UsuarioDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<UsuarioDto>> ObterPorId(int id)
+    [ProducesResponseType(typeof(ApiResponse<UsuarioDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<UsuarioDto>), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiResponse<UsuarioDto>>> ObterPorId(int id)
     {
         var usuario = await _service.ObterPorIdAsync(id);
         
         if (usuario is null)
-            return NotFound();
+        {
+            var errorResponse = new ApiResponse<UsuarioDto>(
+                Sucesso: false,
+                Mensagem: "Usuário não encontrado",
+                Dados: null
+            );
+            return NotFound(errorResponse);
+        }
         
-        return Ok(usuario);
+        var response = new ApiResponse<UsuarioDto>(
+            Sucesso: true,
+            Mensagem: "Usuário obtido com sucesso",
+            Dados: usuario
+        );
+        return Ok(response);
     }
 
     /// <summary>
     /// Cria um novo usuário
     /// </summary>
     [HttpPost]
+    [AllowAnonymous] // Permite criar usuário sem autenticação (registro)
     [ProducesResponseType(typeof(ApiResponse<UsuarioDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse<UsuarioDto>>> Criar([FromBody] CriarUsuarioDto dto)
@@ -84,27 +104,49 @@ public class UsuariosController : ControllerBase
     /// Atualiza um usuário existente
     /// </summary>
     [HttpPut("{id}")]
-    [ProducesResponseType(typeof(UsuarioDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<UsuarioDto>> Atualizar(int id, [FromBody] AtualizarUsuarioDto dto)
+    [ProducesResponseType(typeof(ApiResponse<UsuarioDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<UsuarioDto>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<UsuarioDto>), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<UsuarioDto>>> Atualizar(int id, [FromBody] AtualizarUsuarioDto dto)
     {
         try
         {
             var usuario = await _service.AtualizarAsync(id, dto);
             
             if (usuario is null)
-                return NotFound();
+            {
+                var errorResponse = new ApiResponse<UsuarioDto>(
+                    Sucesso: false,
+                    Mensagem: "Usuário não encontrado",
+                    Dados: null
+                );
+                return NotFound(errorResponse);
+            }
             
-            return Ok(usuario);
+            var response = new ApiResponse<UsuarioDto>(
+                Sucesso: true,
+                Mensagem: "Usuário atualizado com sucesso",
+                Dados: usuario
+            );
+            return Ok(response);
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            var errorResponse = new ApiResponse<UsuarioDto>(
+                Sucesso: false,
+                Mensagem: ex.Message,
+                Dados: null
+            );
+            return BadRequest(errorResponse);
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            var errorResponse = new ApiResponse<UsuarioDto>(
+                Sucesso: false,
+                Mensagem: ex.Message,
+                Dados: null
+            );
+            return BadRequest(errorResponse);
         }
     }
 
@@ -112,15 +154,27 @@ public class UsuariosController : ControllerBase
     /// Remove um usuário
     /// </summary>
     [HttpDelete("{id}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Remover(int id)
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiResponse<object>>> Remover(int id)
     {
         var removido = await _service.RemoverAsync(id);
         
         if (!removido)
-            return NotFound();
+        {
+            var errorResponse = new ApiResponse<object>(
+                Sucesso: false,
+                Mensagem: "Usuário não encontrado",
+                Dados: null
+            );
+            return NotFound(errorResponse);
+        }
         
-        return NoContent();
+        var response = new ApiResponse<object>(
+            Sucesso: true,
+            Mensagem: "Usuário removido com sucesso",
+            Dados: null
+        );
+        return Ok(response);
     }
 }
