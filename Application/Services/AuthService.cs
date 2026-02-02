@@ -55,11 +55,11 @@ public class AuthService : IAuthService
         return new LoginResponseDto(token, refreshToken, expiresAt, usuarioDto);
     }
 
-    public async Task<LoginResponseDto?> RefreshTokenAsync(string refreshToken)
+    public Task<LoginResponseDto?> RefreshTokenAsync(string refreshToken)
     {
         // TODO: Implementar validação de refresh token armazenado no banco
         // Por enquanto, retorna null (você pode implementar depois)
-        return null;
+        return Task.FromResult<LoginResponseDto?>(null);
     }
 
     public string GenerateJwtToken(int userId, string email)
