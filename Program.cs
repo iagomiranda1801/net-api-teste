@@ -94,53 +94,6 @@ if (!string.IsNullOrEmpty(port))
 
 var app = builder.Build();
 
-// Aplicar migrations automaticamente ao iniciar
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-    try
-    {
-        var context = services.GetRequiredService<AppDbContext>();
-        
-        // Verificar se tem connection string configurada
-        var connString = builder.Configuration.GetConnectionString("DefaultConnection");
-        if (string.IsNullOrEmpty(connString))
-        {
-            app.Logger.LogWarning("Connection string não configurada. Verifique as variáveis de ambiente.");
-        }
-        else
-        {
-            try
-            {
-                // Converter formato URI para Npgsql format se necessário
-                if (connString.StartsWith("postgresql://") || connString.StartsWith("postgres://"))
-                {
-                    var uri = new Uri(connString);
-                    connString = $"Host={uri.Host};Port={uri.Port};Database={uri.LocalPath.TrimStart('/')};Username={uri.UserInfo.Split(':')[0]};Password={uri.UserInfo.Split(':')[1]}";
-                    app.Logger.LogInformation($"Connection string convertida para formato Npgsql: Host={uri.Host};Port={uri.Port};Database={uri.LocalPath.TrimStart('/')}");
-                    
-                    // Reconfigurar o DbContext com a nova connection string
-                    var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
-                    optionsBuilder.UseNpgsql(connString);
-                    context = new AppDbContext(optionsBuilder.Options);
-                }
-                
-                app.Logger.LogInformation("Aplicando migrations...");
-                context.Database.Migrate(); // Aplica migrations pendentes
-                app.Logger.LogInformation("Migrations aplicadas com sucesso");
-            }
-            catch (Exception ex)
-            {
-                app.Logger.LogError(ex, "Erro ao processar connection string ou aplicar migrations");
-            }
-        }
-    }
-    catch (Exception ex)
-    {
-        app.Logger.LogError(ex, "Erro ao aplicar migrations");
-    }
-}
-
 // Configure the HTTP request pipeline.
 app.UseSwagger();
 app.UseSwaggerUI();
@@ -164,5 +117,56 @@ app.MapGet("/health", () => Results.Ok(new {
 })).AllowAnonymous();
 
 app.MapControllers();
+
+// Aplicar migrations em background (não bloqueia o startup)
+_ = Task.Run(async () =>
+{
+    await Task.Delay(1000); // Aguarda 1 segundo para garantir que o servidor HTTP está pronto
+    using var scope = app.Services.CreateScope();
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<AppDbContext>();
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        
+        // Verificar se tem connection string configurada
+        var connString = builder.Configuration.GetConnectionString("DefaultConnection");
+        if (string.IsNullOrEmpty(connString))
+        {
+            logger.LogWarning("Connection string não configurada. Verifique as variáveis de ambiente.");
+        }
+        else
+        {
+            try
+            {
+                // Converter formato URI para Npgsql format se necessário
+                if (connString.StartsWith("postgresql://") || connString.StartsWith("postgres://"))
+                {
+                    var uri = new Uri(connString);
+                    connString = $"Host={uri.Host};Port={uri.Port};Database={uri.LocalPath.TrimStart('/')};Username={uri.UserInfo.Split(':')[0]};Password={uri.UserInfo.Split(':')[1]}";
+                    logger.LogInformation($"Connection string convertida para formato Npgsql: Host={uri.Host};Port={uri.Port};Database={uri.LocalPath.TrimStart('/')}");
+                    
+                    // Reconfigurar o DbContext com a nova connection string
+                    var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
+                    optionsBuilder.UseNpgsql(connString);
+                    context = new AppDbContext(optionsBuilder.Options);
+                }
+                
+                logger.LogInformation("Aplicando migrations...");
+                context.Database.Migrate();
+                logger.LogInformation("Migrations aplicadas com sucesso");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Erro ao processar connection string ou aplicar migrations");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Erro ao aplicar migrations em background");
+    }
+});
 
 app.Run();
