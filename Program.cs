@@ -139,19 +139,11 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-else
-{
-    // Habilitar Swagger em produção para Railway
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
-// app.UseHttpsRedirection(); // Desabilitado para desenvolvimento HTTP
+// NÃO usar HTTPS redirect no Railway
+// app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -160,6 +152,11 @@ app.UseAuthorization();
 app.MapGet("/", () => Results.Ok(new { 
     status = "online", 
     message = "MinhaAPI está rodando!",
+    timestamp = DateTime.UtcNow 
+})).AllowAnonymous();
+
+app.MapGet("/health", () => Results.Ok(new { 
+    status = "healthy", 
     timestamp = DateTime.UtcNow 
 })).AllowAnonymous();
 
