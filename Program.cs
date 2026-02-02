@@ -107,14 +107,29 @@ using (var scope = app.Services.CreateScope())
         }
         else
         {
-            // Log temporário para debug
-            app.Logger.LogInformation($"Connection string recebida (primeiros 50 chars): {connString.Substring(0, Math.Min(50, connString.Length))}...");
-            app.Logger.LogInformation($"Tamanho da connection string: {connString.Length}");
-            app.Logger.LogInformation($"Começa com 'postgresql://'? {connString.StartsWith("postgresql://")}");
-            
-            app.Logger.LogInformation("Aplicando migrations...");
-            context.Database.Migrate(); // Aplica migrations pendentes
-            app.Logger.LogInformation("Migrations aplicadas com sucesso");
+            try
+            {
+                // Converter formato URI para Npgsql format se necessário
+                if (connString.StartsWith("postgresql://") || connString.StartsWith("postgres://"))
+                {
+                    var uri = new Uri(connString);
+                    connString = $"Host={uri.Host};Port={uri.Port};Database={uri.LocalPath.TrimStart('/')};Username={uri.UserInfo.Split(':')[0]};Password={uri.UserInfo.Split(':')[1]}";
+                    app.Logger.LogInformation($"Connection string convertida para formato Npgsql: Host={uri.Host};Port={uri.Port};Database={uri.LocalPath.TrimStart('/')}");
+                    
+                    // Reconfigurar o DbContext com a nova connection string
+                    var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
+                    optionsBuilder.UseNpgsql(connString);
+                    context = new AppDbContext(optionsBuilder.Options);
+                }
+                
+                app.Logger.LogInformation("Aplicando migrations...");
+                context.Database.Migrate(); // Aplica migrations pendentes
+                app.Logger.LogInformation("Migrations aplicadas com sucesso");
+            }
+            catch (Exception ex)
+            {
+                app.Logger.LogError(ex, "Erro ao processar connection string ou aplicar migrations");
+            }
         }
     }
     catch (Exception ex)
