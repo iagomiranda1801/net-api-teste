@@ -103,17 +103,21 @@ app.UseSwaggerUI(c =>
 // app.UseHttpsRedirection();
 
 // Health check ANTES de qualquer middleware de autenticação
-app.MapGet("/health", () => 
+app.MapGet("/health", (ILogger<Program> logger) => 
 {
+    logger.LogInformation("Health check endpoint called!");
     return Results.Text("OK", "text/plain", statusCode: 200);
 }).AllowAnonymous().WithName("HealthCheck");
 
-app.MapGet("/", () => 
+app.MapGet("/", (ILogger<Program> logger) => 
 {
+    logger.LogInformation("Root endpoint called!");
     return Results.Ok(new { 
         status = "online", 
         message = "MinhaAPI está rodando!",
-        timestamp = DateTime.UtcNow 
+        timestamp = DateTime.UtcNow,
+        environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+        port = Environment.GetEnvironmentVariable("PORT")
     });
 }).AllowAnonymous().WithName("Root");
 
@@ -121,7 +125,7 @@ app.MapGet("/", () =>
 app.Use(async (context, next) =>
 {
     var start = DateTime.UtcNow;
-    app.Logger.LogInformation($"[REQUEST] {context.Request.Method} {context.Request.Path} from {context.Connection.RemoteIpAddress}");
+    app.Logger.LogInformation($"[REQUEST] {context.Request.Method} {context.Request.Path} from {context.Connection.RemoteIpAddress} - Headers: {string.Join(", ", context.Request.Headers.Keys)}");
     await next();
     var duration = (DateTime.UtcNow - start).TotalMilliseconds;
     app.Logger.LogInformation($"[RESPONSE] {context.Request.Method} {context.Request.Path} - {context.Response.StatusCode} ({duration}ms)");
