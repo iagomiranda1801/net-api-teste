@@ -136,6 +136,13 @@ else
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Health check para Railway
+app.MapGet("/", () => Results.Ok(new { 
+    status = "online", 
+    message = "MinhaAPI está rodando!",
+    timestamp = DateTime.UtcNow 
+})).AllowAnonymous();
+
 app.MapControllers();
 
 app.Run();
