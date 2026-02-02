@@ -4,8 +4,10 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "dotnet MinhaApi.dll --urls http://0.0.0.0:$PORT",
+    "startCommand": "dotnet MinhaApi.dll",
     "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
+    "restartPolicyMaxRetries": 10,
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 300
   }
 }
