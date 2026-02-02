@@ -107,6 +107,11 @@ using (var scope = app.Services.CreateScope())
         }
         else
         {
+            // Log temporário para debug
+            app.Logger.LogInformation($"Connection string recebida (primeiros 50 chars): {connString.Substring(0, Math.Min(50, connString.Length))}...");
+            app.Logger.LogInformation($"Tamanho da connection string: {connString.Length}");
+            app.Logger.LogInformation($"Começa com 'postgresql://'? {connString.StartsWith("postgresql://")}");
+            
             app.Logger.LogInformation("Aplicando migrations...");
             context.Database.Migrate(); // Aplica migrations pendentes
             app.Logger.LogInformation("Migrations aplicadas com sucesso");
